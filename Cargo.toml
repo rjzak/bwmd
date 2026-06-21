@@ -1,6 +1,20 @@
 [package]
 name = "bwmd"
 authors = ["Richard Zak <richard.j.zak@gmail.com>"]
+categories = ["Algorithms", "Artificial Intelligence"]
+description = "Burrows-Wheeler Markov Distance. Use compression to measure similarity."
 edition = "2024"
+keywords = ["compression-distance", "machine-learning", "malware"]
 license = "Apache-2.0"
+readme = "readme.md"
+repository = "https://github.com/rjzak/bwmd"
+rust-version = "1.85.0"
 version = "0.0.1"
+
+[features]
+default = []
+serde = ["serde/derive"]
+
+[dependencies]
+base64 = "0.22"
+serde = { version = "1.0", features = ["std"], default-features = false, optional = true }
