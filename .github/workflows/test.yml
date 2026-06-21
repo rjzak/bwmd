@@ -1,0 +1,26 @@
+name: Test
+on: [ push, pull_request ]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - host: macos-latest
+            name: macOS
+          - host: ubuntu-latest
+            name: Linux x86_64
+          - host: ubuntu-24.04-arm
+            name: Linux arm64
+          - host: windows-latest
+            name: Windows x86_64
+          - host: windows-11-arm
+            name: Windows arm64
+    runs-on: ${{ matrix.platform.host }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo test on ${{ matrix.platform.name }}
+        run: cargo test
