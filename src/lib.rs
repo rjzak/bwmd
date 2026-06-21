@@ -14,7 +14,7 @@ use base64::{Engine as _, engine::general_purpose};
 const ALPHABET_SIZE: usize = 256;
 const VEC_LEN: usize = ALPHABET_SIZE * ALPHABET_SIZE;
 
-/// Store a sparse vector of pairs of non-zero items and its index.
+/// Store a sparse vector of pairs of non-zero items and cooresponding index.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SparseVector {

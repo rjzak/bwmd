@@ -1,5 +1,6 @@
 [![Test](https://github.com/rjzak/bwmd/actions/workflows/test.yml/badge.svg)](https://github.com/rjzak/bwmd/actions/workflows/test.yml)
 [![Lint](https://github.com/rjzak/bwmd/actions/workflows/lint.yml/badge.svg)](https://github.com/rjzak/bwmd/actions/workflows/lint.yml)
+[![Crates.io Version](https://img.shields.io/crates/v/bwmd)](https://crates.io/crates/bwmd)
 
 ## Burrows Wheeler Markov Distance (BWMD)
 
