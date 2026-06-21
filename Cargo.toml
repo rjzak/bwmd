@@ -1,0 +1,6 @@
+[package]
+name = "bwmd"
+authors = ["Richard Zak <richard.j.zak@gmail.com>"]
+edition = "2024"
+license = "Apache-2.0"
+version = "0.0.1"
