@@ -18,8 +18,11 @@ const VEC_LEN: usize = ALPHABET_SIZE * ALPHABET_SIZE;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SparseVector {
-    pairs: HashMap<u32, f32>,
-    size: u32,
+    /// Map of indices to values from the original vector.
+    pub pairs: HashMap<u32, f32>,
+
+    /// Size of the original vector.
+    pub size: u32,
 }
 
 impl SparseVector {
@@ -112,7 +115,7 @@ impl SparseVector {
             bytes.extend_from_slice(&v.to_be_bytes());
         }
         bytes.extend_from_slice(&self.size.to_be_bytes());
-        general_purpose::STANDARD.encode(&bytes)
+        general_purpose::STANDARD.encode(bytes)
     }
 }
 
