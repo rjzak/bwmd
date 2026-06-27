@@ -119,13 +119,15 @@ impl SparseVector {
     }
 }
 
-/// Builds the suffix array of `s` using prefix doubling (O(n log² n)).
+/// Builds the suffix array of `s` using prefix doubling with radix sorting
+/// (O(n log n)).
 ///
 /// Returns a vector SA where SA[i] is the start of the i-th
-/// lexicographically smallest suffix. End-of-string is modelled by rank -1,
-/// so shorter suffixes that are a prefix of a longer one sort first.
+/// lexicographically smallest suffix. Ranks are 1-based so that index 0 can
+/// model end-of-string: shorter suffixes that are a prefix of a longer one
+/// sort first. Because every suffix of a string is distinct, the suffix array
+/// is unique, so this is byte-for-byte equivalent to a comparison-based build.
 #[inline]
-#[allow(clippy::cast_sign_loss)]
 fn build_suffix_array(s: &[u8]) -> Vec<usize> {
     let n = s.len();
     if n == 0 {
@@ -135,34 +137,64 @@ fn build_suffix_array(s: &[u8]) -> Vec<usize> {
         return vec![0];
     }
 
-    let mut rank: Vec<i32> = s.iter().map(|&b| i32::from(b)).collect();
+    // Counting-sort buckets must span every rank value. After the first round
+    // ranks are bounded by `n`; the initial byte-derived ranks reach 256.
+    let cap = n.max(ALPHABET_SIZE) + 2;
+
+    // 1-based ranks: 0 is reserved as the "past end of string" sentinel.
+    let mut rank: Vec<u32> = s.iter().map(|&b| u32::from(b) + 1).collect();
+    let mut next_rank = vec![0u32; n];
     let mut sa: Vec<usize> = (0..n).collect();
+    let mut sa_by_low = vec![0usize; n];
+    let mut count = vec![0usize; cap];
 
     let mut k = 1usize;
     loop {
-        let r = rank.clone();
-        sa.sort_by(|&a, &b| {
-            let ra = (r[a], if a + k < n { r[a + k] } else { -1 });
-            let rb = (r[b], if b + k < n { r[b + k] } else { -1 });
-            ra.cmp(&rb)
-        });
+        // Radix sort the suffixes by the pair (rank[i], rank[i + k]) using two
+        // stable counting-sort passes: first by the low key, then by the high.
 
-        let mut new_rank = vec![0i32; n];
-        for i in 1..n {
-            let prev = (
-                r[sa[i - 1]],
-                if sa[i - 1] + k < n {
-                    r[sa[i - 1] + k]
-                } else {
-                    -1
-                },
-            );
-            let curr = (r[sa[i]], if sa[i] + k < n { r[sa[i] + k] } else { -1 });
-            new_rank[sa[i]] = new_rank[sa[i - 1]] + i32::from(prev != curr);
+        // Pass 1: stable sort by the low key rank[i + k] (0 when i + k >= n).
+        count.fill(0);
+        for i in 0..n {
+            let low = if i + k < n { rank[i + k] as usize } else { 0 };
+            count[low + 1] += 1;
         }
-        rank = new_rank;
+        for i in 1..cap {
+            count[i] += count[i - 1];
+        }
+        for i in 0..n {
+            let low = if i + k < n { rank[i + k] as usize } else { 0 };
+            sa_by_low[count[low]] = i;
+            count[low] += 1;
+        }
 
-        if rank[sa[n - 1]] as usize == n - 1 || k >= n {
+        // Pass 2: stable sort by the high key rank[i], preserving low-key order.
+        count.fill(0);
+        for &r in &rank {
+            count[r as usize + 1] += 1;
+        }
+        for i in 1..cap {
+            count[i] += count[i - 1];
+        }
+        for &i in &sa_by_low {
+            let high = rank[i] as usize;
+            sa[count[high]] = i;
+            count[high] += 1;
+        }
+
+        // Recompute ranks from the new ordering.
+        let key = |i: usize| (rank[i], if i + k < n { rank[i + k] } else { 0 });
+        next_rank[sa[0]] = 1;
+        let mut r = 1u32;
+        for w in 1..n {
+            if key(sa[w]) != key(sa[w - 1]) {
+                r += 1;
+            }
+            next_rank[sa[w]] = r;
+        }
+        std::mem::swap(&mut rank, &mut next_rank);
+
+        if r as usize == n || k >= n {
             break;
         }
         k *= 2;
@@ -206,16 +238,12 @@ pub fn vectorize(data: &[u8]) -> Vec<f32> {
         prev_val = cur_val;
     }
 
-    // Normalize to transition probabilities
+    // Normalize to transition probabilities, then apply the Hellinger-like
+    // transform sqrt(p) / sqrt(2), in a single pass.
     let norm = (l - 1) as f32;
-    for c in &mut counts {
-        *c /= norm;
-    }
-
-    // Hellinger-like transform: sqrt(p) / sqrt(2)
     let inv_sqrt2 = std::f32::consts::FRAC_1_SQRT_2;
     for c in &mut counts {
-        *c = c.sqrt() * inv_sqrt2;
+        *c = (*c / norm).sqrt() * inv_sqrt2;
     }
 
     counts
@@ -259,16 +287,12 @@ pub fn vectorize_sparse(data: &[u8]) -> SparseVector {
         prev_val = cur_val;
     }
 
-    // Normalize to transition probabilities
+    // Normalize to transition probabilities, then apply the Hellinger-like
+    // transform sqrt(p) / sqrt(2), in a single pass.
     let norm = (l - 1) as f32;
-    for (_, c) in &mut counts {
-        *c /= norm;
-    }
-
-    // Hellinger-like transform: sqrt(p) / sqrt(2)
     let inv_sqrt2 = std::f32::consts::FRAC_1_SQRT_2;
     for (_, c) in &mut counts {
-        *c = c.sqrt() * inv_sqrt2;
+        *c = (*c / norm).sqrt() * inv_sqrt2;
     }
 
     SparseVector {
